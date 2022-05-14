@@ -1,14 +1,16 @@
 <?php
-
 class Seat {
    private $position;
    private $isSeated;
    private $nextSeat;
    private $prevSeat;
+   private $startSeat= false;
+   private $numSpaces;
 
-   public function __construct($posiiton, $isSeated) {
-      $this->position = $posiiton;
+   public function __construct($positon, $isSeated, $numSpaces) {
+      $this->position = $positon;
       $this->isSeated = $isSeated;
+      $this->numSpaces = $numSpaces;
    }
 
    public function setNextSeat(&$nextSeat) {
@@ -35,6 +37,14 @@ class Seat {
       return $this->isSeated;
    }
 
+   public function setStart() {
+      $this->startSeat = true;
+   }
+
+   public function isStart() {
+      return $this->startSeat;
+   }
+
    private function getCloseSeat(bool $goingUp) {
       return $goingUp ? $this->getNextSeat() : $this->getPrevSeat();
    }
@@ -55,16 +65,37 @@ class Seat {
       return $seat;
    }
 
+   public function getNextSpaceToSit(): ?self {
+      $spaceToNext = 0;
+      $seat = $this;
+      while ($seat = $seat->getNextSeat()) {
+         if ($seat->isStart()) {
+            return null;
+         }
+         if ($seat->isSeated()) {
+            $spaceToNext = 0;
+            continue;
+         }
+         if (++$spaceToNext > $this->numSpaces) {
+            return $seat;
+         }
+      }
+   }
+
    public function hasEmptySeats(int $numSpaces, bool $goingUp = true) {
       return $this->getFreeSeat(($numSpaces - 1), $goingUp);
    }
 
    public function hasEnoughSpace(int $numSpaces) {
-      return $this->hasEmptySeats($numSpaces, true) && $this->hasEmptySeats($numSpaces, false);
+      return $this->hasEmptySeats($numSpaces, true);
    }
 
    public function sitDown() {
       $this->isSeated = true;
+   }
+
+   public function print() {
+      echo "P:{$this->getPosition()}, Se:{$this->isSeated()}, St:{$this->isStart()}\n";
    }
 }
 
@@ -80,7 +111,7 @@ class TableSeating {
 
       while (++$i <= $numSeats) {
          $isSat = isset($aSat[$i]);
-         $this->iSeats[$i] = new Seat($i, $isSat);
+         $this->iSeats[$i] = new Seat($i, $isSat, $this->seatSpace);
       }
 
       foreach ($this->iSeats as $i => $seat) {
@@ -97,30 +128,24 @@ class TableSeating {
       }
    }
 
-   private function sitAroundSeat($seatNumber) {
+   private function startSittingAroundSeat($seatNumber) {
       $startSeat = $this->iSeats[$seatNumber];
+      $startSeat->setStart();
       $iSeat = $startSeat;
-      while ($iSeat = $iSeat->getFreeSeat($this->seatSpace)) {
+      while ($iSeat = $iSeat->getNextSpaceToSit()) {
          if ($iSeat->hasEnoughSpace($this->seatSpace)) {
             $iSeat->sitDown();
-         } else {
-            break;
-         }
-      }
-      $iSeat = $startSeat;
-      while ($iSeat = $iSeat->getFreeSeat($this->seatSpace, false)) {
-         if ($iSeat->hasEnoughSpace($this->seatSpace, false)) {
-            $iSeat->sitDown();
-         } else {
-            break;
          }
       }
    }
 
    public function getMostNewSeats(): int {
-      foreach ($this->alreadySat as $iStartSeat) {
-         $this->sitAroundSeat($iStartSeat);
+      $minSpaceToSeatMore = count($this->iSeats) / 2;
+      if ($this->seatSpace > $minSpaceToSeatMore) {
+         return 0;
       }
+
+      $this->startSittingAroundSeat($this->alreadySat[0]);
 
       $totalSat = 0;
       foreach ($this->iSeats as $seat) {
