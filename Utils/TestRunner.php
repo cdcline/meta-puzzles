@@ -2,6 +2,8 @@
 
 namespace Utils;
 
+use Exception;
+
 class TestRunner {
    private $testCases;
    private $testFunction;
@@ -22,21 +24,30 @@ class TestRunner {
    private function runAllTests() {
       $failures = [];
       $tFunction = $this->testFunction;
+      $passed = 0;
       foreach ($this->testCases as $i => $tCase) {
-         if ($errors = $tFunction($tCase)) {
-            $iStr = "testCase{$i}";
-            $failures[$iStr] = $errors;
+         try {
+            if ($errors = $tFunction($tCase)) {
+               $iStr = "testCase{$i}";
+               $failures[$iStr] = $errors;
+            } else {
+               $passed++;
+            }
+         } catch (Exception $e) {
+            $failures[$iStr] = $e->getMessage();
          }
       }
-      $failures ? $this->printFail($failures) : $this->printPass();
+      $failures ? $this->printFail($passed, $failures) : $this->printPass();
    }
 
    private function printPass(): void {
       echo "=== PASS ===\n";
    }
 
-   private function printFail(array $failures): void {
-      echo "=== FAIL ===\n";
+   private function printFail(int $passed, array $failures): void {
+      $total = count($failures) + $passed;
+      $passStr = "({$passed}/{$total} passed)";
+      echo "=== FAIL {$passStr} ===\n";
       print_r($failures);
    }
 }
